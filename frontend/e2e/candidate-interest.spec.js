@@ -12,12 +12,22 @@ function collectBrowserErrors(page) {
   return errors;
 }
 
-test('candidate navigates from the landing page and submits one durable interest record', async ({ page }) => {
+/** Asserts that navigation reached the complete candidate interest form. */
+async function expectCandidateForm(page) {
+  await expect(page).toHaveURL('/apply');
+  await expect(page.getByLabel('Full Name')).toBeVisible();
+  await expect(page.getByLabel('Email Address')).toBeVisible();
+  await expect(page.getByLabel('Mobile Number')).toBeVisible();
+  await expect(page.getByLabel('Department of Interest')).toBeVisible();
+}
+
+test('candidate navigates from the hero and submits one durable interest record', async ({ page }) => {
   const errors = collectBrowserErrors(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Build Your Future With Us' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Why Join Us?' })).toBeVisible();
   await page.getByRole('link', { name: 'Express Your Interest' }).click();
+  await expectCandidateForm(page);
 
   await page.getByLabel('Full Name').fill('Alex Morgan');
   await page.getByLabel('Email Address').fill('alex@example.com');
@@ -26,9 +36,23 @@ test('candidate navigates from the landing page and submits one durable interest
   await page.getByRole('button', { name: 'Submit Application' }).click();
 
   await expect(page.getByRole('status')).toHaveText('Thank you! Your interest has been submitted successfully.');
+  await page.screenshot({ path: 'test-results/candidate-interest-desktop-success.png', fullPage: true });
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('hirehub_submissions') || '[]').length)).toBe(1);
   await page.reload();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('hirehub_submissions') || '[]')[0]?.email)).toBe('alex@example.com');
+  expect(errors).toEqual([]);
+});
+
+test('candidate reaches the form through header and bottom call-to-action links', async ({ page }) => {
+  const errors = collectBrowserErrors(page);
+  await page.goto('/');
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Apply' }).click();
+  await expectCandidateForm(page);
+
+  await page.getByRole('link', { name: '← Back to Home' }).click();
+  await expect(page).toHaveURL('/');
+  await page.getByRole('link', { name: 'Apply Now' }).click();
+  await expectCandidateForm(page);
   expect(errors).toEqual([]);
 });
 

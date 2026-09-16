@@ -47,3 +47,44 @@ test('administrator authenticates, manages a browser-persisted candidate, and lo
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('hirehub_admin_auth'))).toBeNull();
   expect(errors).toEqual([]);
 });
+
+test('mobile layout keeps header navigation, the interest form, and dashboard table usable', async ({ page }) => {
+  const errors = collectBrowserErrors(page);
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.goto('/');
+
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  await expect(navigation).toBeVisible();
+  const navBox = await navigation.boundingBox();
+  const headerBox = await page.locator('.site-header').boundingBox();
+  expect(navBox.y).toBeLessThan(headerBox.y + headerBox.height);
+  expect(navBox.x + navBox.width).toBeLessThanOrEqual(375);
+
+  await navigation.getByRole('link', { name: 'Apply' }).click();
+  await expect(page.getByLabel('Full Name')).toBeVisible();
+  await page.getByLabel('Full Name').fill('Mobile Candidate');
+  await page.getByLabel('Email Address').fill('mobile@example.com');
+  await page.getByLabel('Mobile Number').fill('9876543210');
+  await page.getByLabel('Department of Interest').selectOption('Engineering');
+  await page.getByRole('button', { name: 'Submit Application' }).click();
+  await expect(page.getByRole('status')).toHaveText('Thank you! Your interest has been submitted successfully.');
+  await page.screenshot({ path: 'test-results/candidate-interest-mobile-success.png', fullPage: true });
+
+  await page.getByRole('link', { name: '← Back to Home' }).click();
+  await expect(page).toHaveURL('/');
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Admin' }).click();
+  await page.getByLabel('Username').fill('admin');
+  await page.getByLabel('Password').fill('admin');
+  await page.getByRole('button', { name: 'Login' }).click();
+  await expect(page.getByText('Mobile Candidate')).toBeVisible();
+  const tableScroll = page.locator('.table-scroll');
+  await expect(tableScroll).toBeVisible();
+  const scrollWidth = await tableScroll.evaluate((element) => element.scrollWidth);
+  const clientWidth = await tableScroll.evaluate((element) => element.clientWidth);
+  expect(scrollWidth).toBeGreaterThanOrEqual(clientWidth);
+  await tableScroll.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
+  expect(errors).toEqual([]);
+});

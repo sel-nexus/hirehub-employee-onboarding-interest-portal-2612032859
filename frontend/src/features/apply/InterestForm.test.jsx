@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
@@ -32,6 +32,37 @@ describe('InterestForm', () => {
     expect(screen.getByText(/valid email address/i)).toBeInTheDocument();
     expect(screen.getByText(/10-digit mobile/i)).toBeInTheDocument();
     expect(screen.getByText('Select a department of interest.')).toBeInTheDocument();
+    expect(window.localStorage.getItem(SUBMISSIONS_KEY)).toBeNull();
+  });
+
+  it('accepts a 100-character full name and persists the valid candidate', async () => {
+    const user = userEvent.setup();
+    const fullName = 'A'.repeat(100);
+    renderForm();
+
+    await user.type(screen.getByLabelText('Full Name'), fullName);
+    await user.type(screen.getByLabelText('Email Address'), 'boundary@example.com');
+    await user.type(screen.getByLabelText('Mobile Number'), '9876543210');
+    await user.selectOptions(screen.getByLabelText('Department of Interest'), 'Engineering');
+    await user.click(screen.getByRole('button', { name: 'Submit Application' }));
+
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(SUBMISSIONS_KEY))[0]).toMatchObject({ fullName });
+  });
+
+  it('rejects a 101-character full name and does not persist it', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText('Full Name'), {
+      target: { name: 'fullName', value: 'A'.repeat(101) },
+    });
+    await user.type(screen.getByLabelText('Email Address'), 'too-long@example.com');
+    await user.type(screen.getByLabelText('Mobile Number'), '9876543210');
+    await user.selectOptions(screen.getByLabelText('Department of Interest'), 'Engineering');
+    await user.click(screen.getByRole('button', { name: 'Submit Application' }));
+
+    expect(screen.getByText(/alphabets and spaces only/i)).toBeInTheDocument();
     expect(window.localStorage.getItem(SUBMISSIONS_KEY)).toBeNull();
   });
 
