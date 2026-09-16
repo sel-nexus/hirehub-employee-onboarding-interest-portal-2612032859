@@ -42,7 +42,7 @@ test('administrator authenticates, manages a browser-persisted candidate, and lo
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByText('No submissions yet.')).toBeVisible();
-  await page.getByRole('button', { name: 'Logout' }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Logout' }).click();
   await expect(page).toHaveURL('/');
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('hirehub_admin_auth'))).toBeNull();
   expect(errors).toEqual([]);
